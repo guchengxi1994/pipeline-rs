@@ -1,5 +1,9 @@
 use serde::Deserialize;
-use std::{any::Any, fmt::Display};
+use std::{
+    any::Any,
+    fmt::Display,
+    panic::{self, AssertUnwindSafe},
+};
 
 use crate::node::{get_node, AnyMap};
 
@@ -11,12 +15,73 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    pub fn execute(&self) {
+    pub fn execute(&self, on_error: Option<fn(&str)>, on_step: Option<fn(&str)>) {
         let mut context: AnyMap = std::collections::HashMap::new();
 
         for action in &self.actions {
             // action.execute(&mut global,action);
-            node_execute(action.clone(), &mut context);
+
+            let result = panic::catch_unwind(AssertUnwindSafe(|| {
+                node_execute(action.clone(), &mut context)
+            }));
+            match result {
+                Ok(_) => {
+                    if let Some(step_fn) = on_step {
+                        step_fn(&format!("action {} executed", action.name));
+                    }
+                }
+                Err(err) => {
+                    let err_msg;
+                    if let Some(s) = err.downcast_ref::<&str>() {
+                        err_msg = s.to_string();
+                    } else if let Some(s) = err.downcast_ref::<String>() {
+                        err_msg = s.clone();
+                    } else {
+                        err_msg = "Unknown error".to_string();
+                    }
+
+                    if let Some(err_fn) = on_error {
+                        err_fn(&err_msg);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    pub fn execute_with_input(
+        &self,
+        context: &mut AnyMap,
+        on_error: Option<fn(&str)>,
+        on_step: Option<fn(&str)>,
+    ) {
+        for action in &self.actions {
+            // action.execute(&mut global,action);
+
+            let result =
+                panic::catch_unwind(AssertUnwindSafe(|| node_execute(action.clone(), context)));
+            match result {
+                Ok(_) => {
+                    if let Some(step_fn) = on_step {
+                        step_fn(&format!("action {} executed", action.name));
+                    }
+                }
+                Err(err) => {
+                    let err_msg;
+                    if let Some(s) = err.downcast_ref::<&str>() {
+                        err_msg = s.to_string();
+                    } else if let Some(s) = err.downcast_ref::<String>() {
+                        err_msg = s.clone();
+                    } else {
+                        err_msg = "Unknown error".to_string();
+                    }
+
+                    if let Some(err_fn) = on_error {
+                        err_fn(&err_msg);
+                    }
+                    break;
+                }
+            }
         }
     }
 }

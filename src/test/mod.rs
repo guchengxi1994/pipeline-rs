@@ -57,7 +57,7 @@ mod tests {
 
         println!("execute");
 
-        pipeline.execute();
+        pipeline.execute(None, Some(|x| println!("aaaaa  {}", x)));
 
         anyhow::Ok(())
     }
