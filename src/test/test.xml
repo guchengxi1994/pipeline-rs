@@ -1,0 +1,6 @@
+<pipeline>
+    <action class="GetInputNode" inputId="" outputId="input" name="获取最初的输入">
+    </action>
+    <action class="PrintInputNode" inputId="input" outputId="" name="打印输入">
+    </action>
+</pipeline>
